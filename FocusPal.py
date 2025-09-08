@@ -19,7 +19,7 @@ from tqdm import tqdm
 # Global variables
 # Note: These are NOT constants! Since, we are changing their values in our process, these are just global variables.
 start_time, stop_time = "", ""
-session_duration = 20            # Seconds
+session_duration = 20            # Minutes
 session_count = 1
 scheduler = BackgroundScheduler()
 
@@ -37,7 +37,7 @@ def Notify(msg):
     )
 
 def StartDeepWork() -> int:
-    global session_count
+    global session_count, session_duration
 
     scheduler.add_job(Notify, 'interval', args=["Start Deep Work"], seconds=10, id='notify')
 
@@ -48,21 +48,25 @@ def StartDeepWork() -> int:
     if (response.lower() == 'y'):
         scheduler.remove_job('notify')
 
+        session_duration = int(input("Duration (Minutes): "))
+        WORKTIME = int(0.8*session_duration)
+        RESTTIME = int(0.2*session_duration)
+
         # Deep Work Session
         start_time = datetime.now()
         print("Start time: ", start_time.strftime("%H:%M:%S"))
         with tqdm(total=WORKTIME) as pbar:
             # Cannot put the print statement between tqdm - update() else the progress bar will be splitted
             while True:
-                elapsed = int((datetime.now() - start_time).total_seconds())
+                elapsed = int((datetime.now() - start_time).total_seconds()/60)
                 pbar.update(elapsed - pbar.n)
                 # pbar.n = elapsed
                 # pbar.refresh()
 
-                if (elapsed == WORKTIME):
+                if (elapsed >= WORKTIME):
                     break
 
-                time.sleep(1)
+                # time.sleep(60)
 
         # Rest Session
         start_time = datetime.now()
@@ -70,10 +74,10 @@ def StartDeepWork() -> int:
         scheduler.add_job(Notify, 'date', args=["Take a short break!"], run_date=datetime.now(), id='notify_rest')
         with tqdm(total=RESTTIME) as pbar:
             while True:
-                elapsed = int((datetime.now() - start_time).total_seconds())
+                elapsed = int((datetime.now() - start_time).total_seconds()/60)
                 pbar.update(elapsed - pbar.n)
 
-                if (elapsed == RESTTIME):
+                if (elapsed >= RESTTIME):
                     scheduler.add_job(Notify, 'date', args=["Session Completed!"], run_date=datetime.now(), id='notify_end')
                     break
 
