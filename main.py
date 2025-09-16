@@ -8,10 +8,14 @@ from PIL import Image, ImageTk
 import time
 from datetime import datetime, timedelta
 
+from ttkbootstrap.tableview import Tableview
+
+import yfinance as yf
+
 # <----------------- ROOT ----------------->
 root = ttk.Window(themename="minty")
 # These are methods, we call them directly without using configure()
-root.geometry('350x400')
+root.geometry('400x450')
 root.title("FocusPal")
 root.resizable(False, False)
 
@@ -88,9 +92,13 @@ def timer(minutes: int):
     work_update()
 
 # <----------------- MAIN PAGE: BUTTON 1 ----------------->
+
+session_count = 0
 def pomodoro():
     PomodoroPage.tkraise()
-    timer(3)
+    timer(60)
+    session_count += 1
+
 
 
 
@@ -163,11 +171,7 @@ PomBtn.grid(
 # <----------------- MAIN PAGE: BUTTON 2 ----------------->
 # Button 2:
 def trading():
-    # showinfo(
-    #     title='Information',
-    #     message='Pomodoro time!'
-    # )
-    return 0
+    TradingPage.tkraise()
 
 
 
@@ -229,7 +233,7 @@ meter = ttk.Meter(
     subtext="Beat it!",
     interactive=False,
     arcrange=360,
-    stripethickness=10,
+    stripethickness=1,
     # meterstyle='%',
     # textleft='45',
     textright='%',
@@ -247,9 +251,114 @@ meter.grid(column=0, row=1)
 
 # Text widget
 style = ttk.Style()
-style.configure('Meter.TLabel', foreground='black', relief='flat', font=("Cascadia Mono SemiBold", 12, "bold"))
-pmd_label = ttk.Label(PomodoroPage, text='Session #1', style='Meter.TLabel')
+style.configure('Meter.TLabel', foreground='black', relief='flat', font=("Cascadia Mono SemiBold", 15, "bold"))
+pmd_label = ttk.Label(PomodoroPage, text=f'Session #{session_count}', style='Meter.TLabel')
 pmd_label.grid(column=0, row=2, padx=15, pady=15)
+
+# ttk.Button(PomodoroPage, text='Exit', style='info.TButton')
+# <----------------- POMODORO PAGE: BUTTON 1 ----------------->
+# Button 2:
+def Exit():
+    MainPage.tkraise()
+
+style.configure("Exit.TButton", **style.configure("primary.Outline.TButton"))
+
+# Now override only what you need
+style.configure(
+    "Exit.TButton",
+    font=("Cascadia Mono SemiBold", 12, "bold"),
+    foreground="black",  # only if you want to override
+    relief="ridge",
+    width=4
+)
+
+# Create a styled button
+ExitIconOriginal = Image.open('./assets/exit.png')
+ExitIconResized = ExitIconOriginal.resize((25,25))
+ExitIcon = ImageTk.PhotoImage(ExitIconResized)
+
+HBtn = ttk.Button(
+    PomodoroPage,
+    text="Exit",
+    image=ExitIcon,
+
+    style='Exit.TButton',
+    # style="success.TButton",
+    compound="left",
+    command=Exit,   # Since I declared text before image, this compound is for image relative to text.
+)
+HBtn.place(x=300, y=400)
+
+
+
+
+
+# <----------------- TRADING PAGE ----------------->
+# Page: TRADING Page
+style = ttk.Style()
+style.configure('Trading.TFrame', relief='flat')           # Removed background colour to match with Meter
+TradingPage = ttk.Frame(container, style='Trading.TFrame')
+TradingPage.grid(row=0, column=0, sticky="nsew")
+
+colors = root.style.colors
+coldata = [
+    {"text": "Stock", "stretch": False},
+    {"text": "Price", "stretch": False},
+    {"text": "% Change", "stretch": False}
+]
+
+
+import yfinance as yf
+
+def get_live_rowdata(tickers):
+    """
+    Fetch latest stock data using yfinance.
+    Prioritize premarket > postmarket > regular session.
+    Returns: [(ticker, price, %change), ...]
+    """
+    rowdata = []
+    for ticker in tickers:
+        stock = yf.Ticker(ticker)
+        info = stock.info
+
+        # Default values
+        price, pct_change = None, None
+
+        # Priority: preMarket > postMarket > regularMarket
+        if info.get("preMarketPrice") is not None:
+            price = info["preMarketPrice"]
+            pct_change = info.get("preMarketChangePercent")
+        elif info.get("postMarketPrice") is not None:
+            price = info["postMarketPrice"]
+            pct_change = info.get("postMarketChangePercent")
+        else:
+            price = info.get("regularMarketPrice")
+            pct_change = info.get("regularMarketChangePercent")
+
+        if price is not None and pct_change is not None:
+            rowdata.append((ticker, f"${price:.2f}", f"{pct_change:+.2f}%"))
+        else:
+            rowdata.append((ticker, "N/A", "N/A"))
+
+    return rowdata
+
+
+
+
+tickers = ["SOUN", "OPEN", "BBAI", "ZIM", "AI"]
+rowdata = get_live_rowdata(tickers)
+
+dt = Tableview(
+    master=TradingPage,
+    coldata=coldata,
+    rowdata=rowdata,
+    paginated=True,
+    searchable=True,
+    bootstyle=PRIMARY,
+    stripecolor=(None, None),
+    autofit=True
+)
+dt.pack(fill=BOTH, expand=YES, padx=10, pady=10)
 
 
 
